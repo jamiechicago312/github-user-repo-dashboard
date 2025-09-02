@@ -72,12 +72,12 @@ export class CriteriaAnalyzer {
 
     // 2. User has maintainer/write access
     const accessResult: CriteriaResult = {
-      criterion: 'Write Access',
+      criterion: 'Maintainer/Write Access',
       required: 1,
       actual: hasWriteAccess ? 1 : 0,
       status: hasWriteAccess ? 'meets' : 'falls_short',
       percentage: hasWriteAccess ? 100 : 0,
-      description: 'User must have maintainer or write access to the repository',
+      description: 'User must have maintainer or write access to the repository (detected via collaborator status, merge activity, or recent commits)',
     };
     criteria.push(accessResult);
 

@@ -65,6 +65,7 @@ export class GitHubService {
   }
 
   async checkUserPermissions(owner: string, repo: string, username: string): Promise<boolean> {
+    // Try to get exact permission level first (requires repo scope + admin access)
     try {
       const { data } = await this.octokit.rest.repos.getCollaboratorPermissionLevel({
         owner,
@@ -72,10 +73,97 @@ export class GitHubService {
         username,
       });
       
-      // Check if user has write access or higher (admin, maintain, push)
-      return ['admin', 'maintain', 'write'].includes(data.permission);
+      const hasRequiredAccess = ['admin', 'maintain', 'write'].includes(data.permission);
+      console.log(`Exact permission check for ${username} on ${owner}/${repo}: ${data.permission} (${hasRequiredAccess ? 'PASS' : 'FAIL'})`);
+      return hasRequiredAccess;
     } catch (error) {
-      // If we can't check permissions, assume false
+      console.log(`Exact permission check failed (${error.status}), trying alternative methods...`);
+    }
+
+    // Fallback to alternative detection methods
+    const methods = [
+      () => this.checkDirectCollaboratorAccess(owner, repo, username),
+      () => this.checkRecentMergeActivity(owner, repo, username),
+      () => this.checkCommitAccess(owner, repo, username)
+    ];
+
+    for (const method of methods) {
+      try {
+        const hasAccess = await method();
+        if (hasAccess) {
+          console.log(`Maintainer/write access detected for ${username} on ${owner}/${repo} via alternative method`);
+          return true;
+        }
+      } catch (error) {
+        console.log(`Permission check method failed:`, error.message);
+        continue;
+      }
+    }
+
+    console.log(`No maintainer/write access detected for ${username} on ${owner}/${repo}`);
+    return false;
+  }
+
+  private async checkDirectCollaboratorAccess(owner: string, repo: string, username: string): Promise<boolean> {
+    try {
+      // This API works with public_repo scope and lists direct collaborators
+      const { data: collaborators } = await this.octokit.rest.repos.listCollaborators({
+        owner,
+        repo,
+        per_page: 100
+      });
+      
+      const isCollaborator = collaborators.some(collab => collab.login.toLowerCase() === username.toLowerCase());
+      console.log(`Direct collaborator check for ${username}: ${isCollaborator}`);
+      return isCollaborator;
+    } catch (error) {
+      console.log(`Collaborator list check failed: ${error.message}`);
+      return false;
+    }
+  }
+
+  private async checkRecentMergeActivity(owner: string, repo: string, username: string): Promise<boolean> {
+    try {
+      // Check if user has merged PRs recently (indicates merge permissions)
+      const { data: pulls } = await this.octokit.rest.pulls.list({
+        owner,
+        repo,
+        state: 'closed',
+        per_page: 50,
+        sort: 'updated',
+        direction: 'desc'
+      });
+
+      const mergedByUser = pulls.some(pr => 
+        pr.merged_at && 
+        pr.merged_by?.login.toLowerCase() === username.toLowerCase()
+      );
+      
+      console.log(`Recent merge activity check for ${username}: ${mergedByUser}`);
+      return mergedByUser;
+    } catch (error) {
+      console.log(`Merge activity check failed: ${error.message}`);
+      return false;
+    }
+  }
+
+  private async checkCommitAccess(owner: string, repo: string, username: string): Promise<boolean> {
+    try {
+      // Check if user has recent commits directly to main branch (not via PR)
+      const { data: commits } = await this.octokit.rest.repos.listCommits({
+        owner,
+        repo,
+        author: username,
+        per_page: 10,
+        since: subDays(new Date(), 90).toISOString()
+      });
+
+      // If they have recent commits, they likely have write access
+      const hasRecentCommits = commits.length > 0;
+      console.log(`Recent commit access check for ${username}: ${hasRecentCommits} (${commits.length} commits)`);
+      return hasRecentCommits;
+    } catch (error) {
+      console.log(`Commit access check failed: ${error.message}`);
       return false;
     }
   }

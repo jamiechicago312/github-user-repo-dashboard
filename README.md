@@ -10,6 +10,26 @@ A Next.js dashboard for analyzing GitHub contributors against the OpenHands Clou
 - 💾 **Local CSV Storage**: Stores analysis data locally for tracking and reporting
 - 🎯 **Visual Indicators**: Clear status indicators (Exceeds/Meets/Falls Short)
 - 📝 **Notes System**: Add contextual notes to each analysis
+- 🔐 **Smart Permission Detection**: Multiple methods to detect maintainer/write access
+
+## Permission Detection Methods
+
+The dashboard uses multiple approaches to detect maintainer/write access:
+
+### Primary Method (Requires `repo` scope)
+- **Direct API Check**: Uses GitHub's `getCollaboratorPermissionLevel` API
+- **Accuracy**: 100% accurate for `admin`, `maintain`, and `write` permissions
+- **Limitation**: Requires `repo` token scope and admin access to repository
+
+### Fallback Methods (Works with `public_repo` scope)
+1. **Collaborator Status**: Checks if user is listed as a direct collaborator
+2. **Merge Activity**: Detects if user has merged PRs (indicates merge permissions)
+3. **Recent Commits**: Identifies users with direct commit access
+
+### Transparency
+- The dashboard clearly indicates which detection method was used
+- Shows limitations when exact permissions cannot be determined
+- Provides context about API restrictions
 
 ## Eligibility Criteria
 
@@ -63,13 +83,15 @@ Or download directly from [nodejs.org](https://nodejs.org/)
 
 Create a GitHub Personal Access Token (Classic) with the following **minimum permissions**:
 
-#### Public Repositories (Recommended)
+#### Public Repositories (Basic functionality)
 For analyzing public repositories only:
 - ✅ **`public_repo`** - Access public repositories
+- ⚠️ **Limitation**: Cannot accurately detect maintainer/write permissions
 
-#### All Repositories (If needed)
+#### All Repositories (Recommended for accurate results)
 For analyzing both public and private repositories:
 - ✅ **`repo`** - Full control of private repositories
+- ✅ **Benefit**: Accurate maintainer/write permission detection via GitHub API
 
 ### Token Scopes Explained
 

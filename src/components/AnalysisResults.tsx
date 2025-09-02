@@ -200,9 +200,15 @@ export function AnalysisResults({ user, analyses, aggregatedAnalysis }: Analysis
             </div>
             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
               <Shield className="w-5 h-5 text-purple-500" />
-              <div>
+              <div className="flex-1">
                 <div className="font-medium">{analysis.hasWriteAccess ? 'Yes' : 'No'}</div>
-                <div className="text-xs text-gray-600">Write Access</div>
+                <div className="text-xs text-gray-600">Maintainer/Write Access</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {analysis.hasWriteAccess 
+                    ? "Detected via: collaborator status, merge activity, or commits"
+                    : "Note: Limited detection due to GitHub API permissions"
+                  }
+                </div>
               </div>
             </div>
           </div>
