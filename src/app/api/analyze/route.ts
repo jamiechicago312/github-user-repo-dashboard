@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GitHubService } from '@/lib/github';
 import { CriteriaAnalyzer } from '@/lib/criteria';
+import { DataStorage } from '@/lib/dataStorage';
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, repoUrls } = await request.json();
+    const { username, repoUrls, saveData = true, notes } = await request.json();
 
     if (!username || !repoUrls || repoUrls.length === 0) {
       return NextResponse.json(
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
 
     const githubService = new GitHubService(token);
     const criteriaAnalyzer = new CriteriaAnalyzer();
+    const dataStorage = new DataStorage();
 
     // Get user info
     const user = await githubService.getUser(username);
@@ -81,10 +83,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get historical data and save current analysis
+    let historicalAnalysis = null;
+    let analysisId = null;
+
+    if (aggregatedAnalysis && saveData) {
+      // Get historical analysis before saving new data
+      historicalAnalysis = await dataStorage.getHistoricalAnalysis(
+        user,
+        repoUrls,
+        aggregatedAnalysis
+      );
+
+      // Save the current analysis
+      analysisId = await dataStorage.saveAnalysis(
+        user,
+        repoUrls,
+        aggregatedAnalysis,
+        historicalAnalysis.isReapplication ? 'renewal' : 'initial',
+        notes
+      );
+    }
+
     return NextResponse.json({
       user,
       analyses: repositoryAnalyses,
       aggregatedAnalysis,
+      historicalAnalysis,
+      analysisId,
     });
 
   } catch (error) {

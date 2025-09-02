@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Github, AlertCircle, CheckCircle, XCircle, Rocket } from 'lucide-react';
+import { Search, Github, AlertCircle, CheckCircle, XCircle, Rocket, FileText } from 'lucide-react';
 import { GitHubService, GitHubUser, GitHubRepo, ContributorStats } from '@/lib/github';
 import { CriteriaAnalyzer, AnalysisResult, CriteriaResult } from '@/lib/criteria';
+import { HistoricalAnalysis } from '@/lib/dataStorage';
 import { AnalysisResults } from './AnalysisResults';
+import { HistoricalAnalysisComponent } from './HistoricalAnalysis';
 
 interface RepositoryAnalysis {
   repo: GitHubRepo;
@@ -16,11 +18,14 @@ interface RepositoryAnalysis {
 export function GitHubAnalyzer() {
   const [username, setUsername] = useState('');
   const [repoUrls, setRepoUrls] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saveData, setSaveData] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [user, setUser] = useState<GitHubUser | null>(null);
   const [analyses, setAnalyses] = useState<RepositoryAnalysis[]>([]);
   const [aggregatedAnalysis, setAggregatedAnalysis] = useState<AnalysisResult | null>(null);
+  const [historicalAnalysis, setHistoricalAnalysis] = useState<HistoricalAnalysis | null>(null);
 
   const analyzeUser = async () => {
     if (!username.trim()) {
@@ -44,6 +49,7 @@ export function GitHubAnalyzer() {
     setUser(null);
     setAnalyses([]);
     setAggregatedAnalysis(null);
+    setHistoricalAnalysis(null);
 
     try {
       const response = await fetch('/api/analyze', {
@@ -54,6 +60,8 @@ export function GitHubAnalyzer() {
         body: JSON.stringify({
           username: username.trim(),
           repoUrls: urls,
+          saveData,
+          notes: notes.trim() || undefined,
         }),
       });
 
@@ -77,6 +85,7 @@ export function GitHubAnalyzer() {
       
       setAnalyses(processedAnalyses);
       setAggregatedAnalysis(data.aggregatedAnalysis);
+      setHistoricalAnalysis(data.historicalAnalysis);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while analyzing the user');
@@ -100,7 +109,7 @@ export function GitHubAnalyzer() {
     <div className="max-w-6xl mx-auto">
       {/* Input Form */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
               GitHub Username
@@ -133,6 +142,39 @@ export function GitHubAnalyzer() {
           </div>
         </div>
 
+        {/* Additional Options */}
+        <div className="space-y-4 mb-6">
+          <div>
+            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
+              Notes (Optional)
+            </label>
+            <div className="relative">
+              <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any notes about this application (e.g., special circumstances, renewal reason, etc.)"
+                rows={2}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="saveData"
+              type="checkbox"
+              checked={saveData}
+              onChange={(e) => setSaveData(e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="saveData" className="text-sm text-gray-700">
+              Save analysis data locally (for tracking reapplications and renewals)
+            </label>
+          </div>
+        </div>
+
         <button
           onClick={analyzeUser}
           disabled={loading}
@@ -161,11 +203,19 @@ export function GitHubAnalyzer() {
 
       {/* Results */}
       {user && (
-        <AnalysisResults
-          user={user}
-          analyses={analyses}
-          aggregatedAnalysis={aggregatedAnalysis}
-        />
+        <>
+          {/* Historical Analysis */}
+          {historicalAnalysis && (
+            <HistoricalAnalysisComponent historicalData={historicalAnalysis} />
+          )}
+          
+          {/* Current Analysis Results */}
+          <AnalysisResults
+            user={user}
+            analyses={analyses}
+            aggregatedAnalysis={aggregatedAnalysis}
+          />
+        </>
       )}
     </div>
   );
