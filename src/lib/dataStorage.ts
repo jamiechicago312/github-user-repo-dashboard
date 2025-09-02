@@ -214,16 +214,11 @@ export class DataStorage {
     const id = `${user.login}_${Date.now()}`;
     const timestamp = new Date().toISOString();
 
-    // Extract criteria results
-    const criteriaMap = analysis.criteria.reduce((acc, criterion) => {
-      const key = criterion.criterion.toLowerCase().replace(/[^a-z]/g, '');
-      acc[key] = {
-        status: criterion.status,
-        actual: criterion.actual,
-        percentage: criterion.percentage
-      };
-      return acc;
-    }, {} as any);
+    // Extract criteria results by finding specific criteria
+    const findCriterion = (searchTerm: string) => {
+      return analysis.criteria.find(c => c.criterion.toLowerCase().includes(searchTerm.toLowerCase())) || 
+             { status: 'falls_short', actual: 0, percentage: 0 };
+    };
 
     const record: AnalysisRecord = {
       id,
@@ -234,11 +229,11 @@ export class DataStorage {
       overallStatus: analysis.overallStatus,
       creditRecommendation: this.getCreditRecommendation(analysis.overallStatus),
       criteriaResults: {
-        repositoryStars: criteriaMap.repositorystars || criteriaMap.stars,
-        writeAccess: criteriaMap.writeaccess || criteriaMap.access,
-        totalMergedPRs: criteriaMap.totalmergedprs || criteriaMap.totalprs,
-        externalContributors: criteriaMap.externalcontributors || criteriaMap.contributors,
-        userMergedPRs: criteriaMap.usermergedprs || criteriaMap.userprs
+        repositoryStars: findCriterion('repository stars'),
+        writeAccess: findCriterion('write access'),
+        totalMergedPRs: findCriterion('total merged prs'),
+        externalContributors: findCriterion('external contributors'),
+        userMergedPRs: findCriterion('user merged prs')
       },
       notes
     };
