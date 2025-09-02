@@ -133,7 +133,13 @@ npm run dev
 
 2. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-3. Enter a GitHub username and repository URL(s)
+3. Enter a GitHub username and repository URL(s):
+   - **Username**: `openhands`
+   - **Repository URLs** (one per line):
+     ```
+     https://github.com/All-Hands-AI/OpenHands
+     https://github.com/All-Hands-AI/OpenHands-Cloud
+     ```
 
 4. Optionally add notes and enable data saving for reapplication tracking
 
