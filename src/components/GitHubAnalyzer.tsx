@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, Github, AlertCircle, CheckCircle, XCircle, Rocket, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Github, AlertCircle, CheckCircle, XCircle, Rocket, FileText, ChevronDown } from 'lucide-react';
 import { GitHubService, GitHubUser, GitHubRepo, ContributorStats } from '@/lib/github';
 import { CriteriaAnalyzer, AnalysisResult, CriteriaResult } from '@/lib/criteria';
-import { HistoricalAnalysis } from '@/lib/dataStorage';
+import { HistoricalAnalysis, AnalysisRecord } from '@/lib/dataStorage';
 import { AnalysisResults } from './AnalysisResults';
 import { HistoricalAnalysisComponent } from './HistoricalAnalysis';
 
@@ -26,6 +26,86 @@ export function GitHubAnalyzer() {
   const [analyses, setAnalyses] = useState<RepositoryAnalysis[]>([]);
   const [aggregatedAnalysis, setAggregatedAnalysis] = useState<AnalysisResult | null>(null);
   const [historicalAnalysis, setHistoricalAnalysis] = useState<HistoricalAnalysis | null>(null);
+  
+  // New state for dropdown functionality
+  const [availableUsers, setAvailableUsers] = useState<string[]>([]);
+  const [selectedUser, setSelectedUser] = useState('');
+  const [userAnalyses, setUserAnalyses] = useState<AnalysisRecord[]>([]);
+  const [selectedAnalysisDate, setSelectedAnalysisDate] = useState('');
+  const [isManualEntry, setIsManualEntry] = useState(true);
+
+  // Load available users on component mount
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const response = await fetch('/api/users');
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableUsers(data.users);
+        }
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
+    };
+    loadUsers();
+  }, []);
+
+  // Handle user selection from dropdown
+  const handleUserSelection = async (selectedUsername: string) => {
+    if (!selectedUsername) {
+      setSelectedUser('');
+      setUserAnalyses([]);
+      setSelectedAnalysisDate('');
+      setUsername('');
+      setRepoUrls('');
+      setNotes('');
+      setIsManualEntry(true);
+      return;
+    }
+
+    setSelectedUser(selectedUsername);
+    setUsername(selectedUsername);
+    setIsManualEntry(false);
+
+    try {
+      const response = await fetch(`/api/history?username=${selectedUsername}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUserAnalyses(data.history);
+        
+        // Auto-select the most recent analysis
+        if (data.history.length > 0) {
+          const mostRecent = data.history[0];
+          setSelectedAnalysisDate(mostRecent.timestamp);
+          setRepoUrls(mostRecent.repositories.join('\n'));
+          setNotes(mostRecent.notes || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user history:', error);
+    }
+  };
+
+  // Handle analysis date selection
+  const handleAnalysisDateSelection = (timestamp: string) => {
+    setSelectedAnalysisDate(timestamp);
+    const selectedAnalysis = userAnalyses.find(analysis => analysis.timestamp === timestamp);
+    if (selectedAnalysis) {
+      setRepoUrls(selectedAnalysis.repositories.join('\n'));
+      setNotes(selectedAnalysis.notes || '');
+    }
+  };
+
+  // Handle manual username input
+  const handleManualUsernameChange = (value: string) => {
+    setUsername(value);
+    if (value !== selectedUser) {
+      setIsManualEntry(true);
+      setSelectedUser('');
+      setUserAnalyses([]);
+      setSelectedAnalysisDate('');
+    }
+  };
 
   const analyzeUser = async () => {
     if (!username.trim()) {
@@ -60,7 +140,7 @@ export function GitHubAnalyzer() {
         body: JSON.stringify({
           username: username.trim(),
           repoUrls: urls,
-          saveData,
+          saveData: saveData && isManualEntry, // Only save data for manual entries
           notes: notes.trim() || undefined,
         }),
       });
@@ -109,6 +189,71 @@ export function GitHubAnalyzer() {
     <div className="max-w-6xl mx-auto">
       {/* Input Form */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        {/* User Selection Section */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Select User</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="userSelect" className="block text-sm font-medium text-gray-700 mb-2">
+                Previous Applicants
+              </label>
+              <div className="relative">
+                <select
+                  id="userSelect"
+                  value={selectedUser}
+                  onChange={(e) => handleUserSelection(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                >
+                  <option value="">Select a previous applicant...</option>
+                  {availableUsers.map(user => (
+                    <option key={user} value={user}>{user}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {userAnalyses.length > 0 && (
+              <div>
+                <label htmlFor="dateSelect" className="block text-sm font-medium text-gray-700 mb-2">
+                  Application Date
+                </label>
+                <div className="relative">
+                  <select
+                    id="dateSelect"
+                    value={selectedAnalysisDate}
+                    onChange={(e) => handleAnalysisDateSelection(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none"
+                  >
+                    {userAnalyses.map((analysis, index) => (
+                      <option key={analysis.id} value={analysis.timestamp}>
+                        {new Date(analysis.timestamp).toLocaleDateString()} 
+                        {index === 0 ? ' (Latest)' : ''}
+                        {analysis.applicationType === 'renewal' ? ' - Renewal' : ' - Initial'}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-end">
+              <div className="text-sm text-gray-600">
+                {isManualEntry ? (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    New Entry
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    Existing Data
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
@@ -120,7 +265,7 @@ export function GitHubAnalyzer() {
                 id="username"
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => handleManualUsernameChange(e.target.value)}
                 placeholder="e.g., intellectronica"
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
