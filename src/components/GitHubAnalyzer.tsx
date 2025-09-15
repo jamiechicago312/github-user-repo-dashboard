@@ -60,6 +60,11 @@ export function GitHubAnalyzer() {
       setRepoUrls('');
       setNotes('');
       setIsManualEntry(true);
+      // Clear displayed results
+      setUser(null);
+      setAnalyses([]);
+      setAggregatedAnalysis(null);
+      setHistoricalAnalysis(null);
       return;
     }
 
@@ -73,12 +78,15 @@ export function GitHubAnalyzer() {
         const data = await response.json();
         setUserAnalyses(data.history);
         
-        // Auto-select the most recent analysis
+        // Auto-select the most recent analysis and display it
         if (data.history.length > 0) {
           const mostRecent = data.history[0];
           setSelectedAnalysisDate(mostRecent.timestamp);
           setRepoUrls(mostRecent.repositories.join('\n'));
           setNotes(mostRecent.notes || '');
+          
+          // Automatically load and display the stored analysis data
+          loadStoredAnalysisData(mostRecent);
         }
       }
     } catch (error) {
@@ -93,6 +101,9 @@ export function GitHubAnalyzer() {
     if (selectedAnalysis) {
       setRepoUrls(selectedAnalysis.repositories.join('\n'));
       setNotes(selectedAnalysis.notes || '');
+      
+      // Automatically load and display the stored analysis data for the selected date
+      loadStoredAnalysisData(selectedAnalysis);
     }
   };
 
@@ -104,7 +115,130 @@ export function GitHubAnalyzer() {
       setSelectedUser('');
       setUserAnalyses([]);
       setSelectedAnalysisDate('');
+      // Clear displayed results when switching to manual entry
+      setUser(null);
+      setAnalyses([]);
+      setAggregatedAnalysis(null);
+      setHistoricalAnalysis(null);
     }
+  };
+
+  // Convert stored analysis record to display format
+  const convertStoredDataToDisplayFormat = (analysisRecord: AnalysisRecord) => {
+    // Create a mock user object from the stored data
+    const mockUser: GitHubUser = {
+      login: analysisRecord.username,
+      id: 0,
+      avatar_url: `https://github.com/${analysisRecord.username}.png`,
+      name: analysisRecord.username,
+      public_repos: 0,
+      followers: 0,
+      following: 0,
+      created_at: '',
+      updated_at: '',
+      html_url: `https://github.com/${analysisRecord.username}`,
+      type: 'User',
+      site_admin: false
+    };
+
+    // Create criteria results from stored data
+    const criteriaResults: CriteriaResult[] = [
+      {
+        criterion: 'Repository Stars',
+        required: 100, // Default requirement
+        actual: analysisRecord.criteriaResults.repositoryStars.actual,
+        status: analysisRecord.criteriaResults.repositoryStars.status as 'exceeds' | 'meets' | 'falls_short',
+        percentage: analysisRecord.criteriaResults.repositoryStars.percentage,
+        description: 'Repository must have at least 100 stars'
+      },
+      {
+        criterion: 'Maintainer/Write Access',
+        required: 1,
+        actual: analysisRecord.criteriaResults.writeAccess.actual ? 1 : 0,
+        status: analysisRecord.criteriaResults.writeAccess.status as 'exceeds' | 'meets' | 'falls_short',
+        percentage: analysisRecord.criteriaResults.writeAccess.percentage,
+        description: 'User must have maintainer or write access to the repository'
+      },
+      {
+        criterion: 'Total Merged PRs (90 days)',
+        required: 20,
+        actual: analysisRecord.criteriaResults.totalMergedPRs.actual,
+        status: analysisRecord.criteriaResults.totalMergedPRs.status as 'exceeds' | 'meets' | 'falls_short',
+        percentage: analysisRecord.criteriaResults.totalMergedPRs.percentage,
+        description: 'Repository must have at least 20 merged PRs from all contributors in the last 90 days'
+      },
+      {
+        criterion: 'External Contributors',
+        required: 2,
+        actual: analysisRecord.criteriaResults.externalContributors.actual,
+        status: analysisRecord.criteriaResults.externalContributors.status as 'exceeds' | 'meets' | 'falls_short',
+        percentage: analysisRecord.criteriaResults.externalContributors.percentage,
+        description: 'Repository must have at least 2 distinct external contributors in the last 90 days'
+      },
+      {
+        criterion: 'User Merged PRs (90 days)',
+        required: 5,
+        actual: analysisRecord.criteriaResults.userMergedPRs.actual,
+        status: analysisRecord.criteriaResults.userMergedPRs.status as 'exceeds' | 'meets' | 'falls_short',
+        percentage: analysisRecord.criteriaResults.userMergedPRs.percentage,
+        description: 'User must have personally authored at least 5 merged PRs in the last 90 days'
+      }
+    ];
+
+    // Calculate summary
+    const passedCriteria = criteriaResults.filter(c => c.status !== 'falls_short').length;
+    const totalCriteria = criteriaResults.length;
+    const score = Math.round((passedCriteria / totalCriteria) * 100);
+
+    // Create aggregated analysis
+    const aggregatedAnalysis: AnalysisResult = {
+      overallStatus: analysisRecord.overallStatus,
+      criteria: criteriaResults,
+      summary: {
+        passed: passedCriteria,
+        total: totalCriteria,
+        score
+      }
+    };
+
+    // Create mock repository analyses
+    const repositoryAnalyses: RepositoryAnalysis[] = analysisRecord.repositories.map((repoUrl, index) => {
+      const repoName = repoUrl.split('/').pop() || 'repository';
+      const ownerName = repoUrl.split('/').slice(-2, -1)[0] || 'owner';
+      
+      return {
+        repo: {
+          name: repoName,
+          full_name: `${ownerName}/${repoName}`,
+          stargazers_count: analysisRecord.criteriaResults.repositoryStars.actual,
+          html_url: repoUrl
+        },
+        stats: {
+          totalMergedPRs: analysisRecord.criteriaResults.totalMergedPRs.actual,
+          userMergedPRs: analysisRecord.criteriaResults.userMergedPRs.actual,
+          externalContributors: new Set(Array.from({ length: analysisRecord.criteriaResults.externalContributors.actual }, (_, i) => `contributor${i + 1}`)),
+          recentPRs: [] // No PR details in stored data
+        },
+        hasWriteAccess: analysisRecord.criteriaResults.writeAccess.actual,
+        analysis: aggregatedAnalysis
+      };
+    });
+
+    return {
+      user: mockUser,
+      analyses: repositoryAnalyses,
+      aggregatedAnalysis
+    };
+  };
+
+  // Load and display stored analysis data
+  const loadStoredAnalysisData = (analysisRecord: AnalysisRecord) => {
+    const displayData = convertStoredDataToDisplayFormat(analysisRecord);
+    
+    setUser(displayData.user);
+    setAnalyses(displayData.analyses);
+    setAggregatedAnalysis(displayData.aggregatedAnalysis);
+    setHistoricalAnalysis(null); // Clear historical analysis for stored data
   };
 
   const analyzeUser = async () => {
@@ -320,23 +454,32 @@ export function GitHubAnalyzer() {
           </div>
         </div>
 
-        <button
-          onClick={analyzeUser}
-          disabled={loading}
-          className="mt-6 w-full md:w-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {loading ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <Search className="w-4 h-4" />
-              Analyze Eligibility
-            </>
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mt-6">
+          <button
+            onClick={analyzeUser}
+            disabled={loading}
+            className="w-full md:w-auto px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4" />
+                {!isManualEntry ? 'Re-analyze with Fresh Data' : 'Analyze Eligibility'}
+              </>
+            )}
+          </button>
+          
+          {!isManualEntry && user && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-800">
+              <CheckCircle className="w-4 h-4" />
+              <span>Viewing stored data from {new Date(selectedAnalysisDate).toLocaleDateString()}</span>
+            </div>
           )}
-        </button>
+        </div>
 
         {error && (
           <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
