@@ -26,6 +26,7 @@ export function GitHubAnalyzer() {
   const [analyses, setAnalyses] = useState<RepositoryAnalysis[]>([]);
   const [aggregatedAnalysis, setAggregatedAnalysis] = useState<AnalysisResult | null>(null);
   const [historicalAnalysis, setHistoricalAnalysis] = useState<HistoricalAnalysis | null>(null);
+  const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
   
   // New state for dropdown functionality
   const [availableUsers, setAvailableUsers] = useState<string[]>([]);
@@ -239,6 +240,7 @@ export function GitHubAnalyzer() {
     setAnalyses(displayData.analyses);
     setAggregatedAnalysis(displayData.aggregatedAnalysis);
     setHistoricalAnalysis(null); // Clear historical analysis for stored data
+    setCurrentAnalysisId(analysisRecord.id); // Set the analysis ID for editing functionality
   };
 
   const analyzeUser = async () => {
@@ -300,6 +302,7 @@ export function GitHubAnalyzer() {
       setAnalyses(processedAnalyses);
       setAggregatedAnalysis(data.aggregatedAnalysis);
       setHistoricalAnalysis(data.historicalAnalysis);
+      setCurrentAnalysisId(data.analysisId);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while analyzing the user');
@@ -526,6 +529,7 @@ export function GitHubAnalyzer() {
             user={user}
             analyses={analyses}
             aggregatedAnalysis={aggregatedAnalysis}
+            currentAnalysisId={currentAnalysisId}
           />
         </>
       )}

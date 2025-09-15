@@ -4,16 +4,14 @@ import { useState, useEffect } from 'react';
 import { Save, X, Edit3, CheckCircle, XCircle, Rocket, AlertCircle } from 'lucide-react';
 import { AnalysisRecord } from '@/lib/dataStorage';
 
-interface EditingState {
-  id: string;
-  notes: string;
-}
+
 
 export function SpreadsheetView() {
   const [analyses, setAnalyses] = useState<AnalysisRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editingState, setEditingState] = useState<EditingState | null>(null);
+  const [editingNotes, setEditingNotes] = useState<{id: string, notes: string} | null>(null);
+  const [editingCredit, setEditingCredit] = useState<{id: string, creditRecommendation: number} | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -38,19 +36,30 @@ export function SpreadsheetView() {
     }
   };
 
-  const startEditing = (analysis: AnalysisRecord) => {
-    setEditingState({
+  const startEditingNotes = (analysis: AnalysisRecord) => {
+    setEditingNotes({
       id: analysis.id,
       notes: analysis.notes || ''
     });
   };
 
-  const cancelEditing = () => {
-    setEditingState(null);
+  const startEditingCredit = (analysis: AnalysisRecord) => {
+    setEditingCredit({
+      id: analysis.id,
+      creditRecommendation: analysis.creditRecommendation
+    });
+  };
+
+  const cancelEditingNotes = () => {
+    setEditingNotes(null);
+  };
+
+  const cancelEditingCredit = () => {
+    setEditingCredit(null);
   };
 
   const saveNotes = async () => {
-    if (!editingState) return;
+    if (!editingNotes) return;
 
     try {
       setSaving(true);
@@ -60,25 +69,60 @@ export function SpreadsheetView() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id: editingState.id,
-          notes: editingState.notes
+          id: editingNotes.id,
+          notes: editingNotes.notes
         }),
       });
 
       if (response.ok) {
         // Update local state
         setAnalyses(prev => prev.map(analysis => 
-          analysis.id === editingState.id 
-            ? { ...analysis, notes: editingState.notes }
+          analysis.id === editingNotes.id 
+            ? { ...analysis, notes: editingNotes.notes }
             : analysis
         ));
-        setEditingState(null);
+        setEditingNotes(null);
       } else {
         setError('Failed to save notes');
       }
     } catch (err) {
       setError('Error saving notes');
       console.error('Error saving notes:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveCredit = async () => {
+    if (!editingCredit) return;
+
+    try {
+      setSaving(true);
+      const response = await fetch('/api/analyses', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: editingCredit.id,
+          creditRecommendation: editingCredit.creditRecommendation
+        }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setAnalyses(prev => prev.map(analysis => 
+          analysis.id === editingCredit.id 
+            ? { ...analysis, creditRecommendation: editingCredit.creditRecommendation }
+            : analysis
+        ));
+        setEditingCredit(null);
+      } else {
+        setError('Failed to save credit amount');
+      }
+    } catch (err) {
+      setError('Error saving credit amount');
+      console.error('Error saving credit amount:', err);
     } finally {
       setSaving(false);
     }
@@ -129,7 +173,7 @@ export function SpreadsheetView() {
       <div className="px-6 py-4 border-b border-gray-200">
         <h2 className="text-xl font-semibold text-gray-900">All Applicants</h2>
         <p className="text-sm text-gray-600 mt-1">
-          {analyses.length} total applications • Click notes to edit
+          {analyses.length} total applications • Click notes or credit amounts to edit
         </p>
       </div>
 
@@ -202,8 +246,54 @@ export function SpreadsheetView() {
                     </span>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  ${analysis.creditRecommendation}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {editingCredit?.id === analysis.id ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center">
+                        <span className="text-sm text-gray-900">$</span>
+                        <input
+                          type="number"
+                          value={editingCredit.creditRecommendation}
+                          onChange={(e) => setEditingCredit({ ...editingCredit, creditRecommendation: parseInt(e.target.value) || 0 })}
+                          className="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          min="0"
+                          max="1000"
+                          step="50"
+                        />
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={saveCredit}
+                          disabled={saving}
+                          className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                          title="Save"
+                        >
+                          <Save className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={cancelEditingCredit}
+                          disabled={saving}
+                          className="p-1 text-gray-600 hover:text-gray-800 disabled:opacity-50"
+                          title="Cancel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group">
+                      <div className="text-sm text-gray-900">
+                        ${analysis.creditRecommendation}
+                      </div>
+                      <button
+                        onClick={() => startEditingCredit(analysis)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-opacity"
+                        title="Edit credit amount"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {analysis.criteriaResults.repositoryStars.actual}
@@ -227,11 +317,11 @@ export function SpreadsheetView() {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  {editingState?.id === analysis.id ? (
+                  {editingNotes?.id === analysis.id ? (
                     <div className="flex items-center gap-2">
                       <textarea
-                        value={editingState.notes}
-                        onChange={(e) => setEditingState({ ...editingState, notes: e.target.value })}
+                        value={editingNotes.notes}
+                        onChange={(e) => setEditingNotes({ ...editingNotes, notes: e.target.value })}
                         className="flex-1 min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         rows={2}
                         placeholder="Add notes..."
@@ -246,7 +336,7 @@ export function SpreadsheetView() {
                           <Save className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={cancelEditing}
+                          onClick={cancelEditingNotes}
                           disabled={saving}
                           className="p-1 text-gray-600 hover:text-gray-800 disabled:opacity-50"
                           title="Cancel"
@@ -263,7 +353,7 @@ export function SpreadsheetView() {
                         </p>
                       </div>
                       <button
-                        onClick={() => startEditing(analysis)}
+                        onClick={() => startEditingNotes(analysis)}
                         className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-opacity"
                         title="Edit notes"
                       >

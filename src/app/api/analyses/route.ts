@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, notes } = await request.json();
+    const { id, notes, creditRecommendation } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -29,13 +29,27 @@ export async function PATCH(request: NextRequest) {
     }
 
     const dataStorage = new DataStorage();
-    const success = await dataStorage.updateAnalysisNotes(id, notes || '');
-
-    if (!success) {
-      return NextResponse.json(
-        { error: 'Analysis not found or could not be updated' },
-        { status: 404 }
-      );
+    
+    // Handle notes update
+    if (notes !== undefined) {
+      const success = await dataStorage.updateAnalysisNotes(id, notes || '');
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Analysis not found or could not be updated' },
+          { status: 404 }
+        );
+      }
+    }
+    
+    // Handle credit recommendation update
+    if (creditRecommendation !== undefined) {
+      const success = await dataStorage.updateAnalysisCreditRecommendation(id, creditRecommendation);
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Analysis not found or could not be updated' },
+          { status: 404 }
+        );
+      }
     }
 
     return NextResponse.json({ success: true });
