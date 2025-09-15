@@ -271,4 +271,49 @@ describe('GitHubAnalyzer - Previous Applicant Feature', () => {
       expect(screen.getByText('Falls Short')).toBeInTheDocument();
     }, { timeout: 3000 });
   });
+
+  it('shows clear button when user is selected and clears everything when clicked', async () => {
+    render(<GitHubAnalyzer />);
+
+    // Initially should not show clear button
+    expect(screen.queryByText('Clear')).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Previous Applicants')).toBeInTheDocument();
+    });
+
+    // Select user
+    const userDropdown = screen.getByLabelText('Previous Applicants');
+    fireEvent.change(userDropdown, { target: { value: 'testuser1' } });
+
+    // Should show clear button
+    await waitFor(() => {
+      expect(screen.getByText('Clear')).toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    // Should show existing data status
+    await waitFor(() => {
+      expect(screen.getByText('Existing Data')).toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    // Click clear button
+    const clearButton = screen.getByText('Clear');
+    fireEvent.click(clearButton);
+
+    // Should clear everything and return to new entry mode
+    await waitFor(() => {
+      expect(screen.getByText('New Entry')).toBeInTheDocument();
+      expect(screen.queryByText('Clear')).not.toBeInTheDocument();
+      expect(screen.getByText('Analyze Eligibility')).toBeInTheDocument();
+      
+      const usernameInput = screen.getByLabelText('GitHub Username');
+      expect(usernameInput).toHaveValue('');
+      
+      const repoInput = screen.getByLabelText('Repository URLs (one per line)');
+      expect(repoInput).toHaveValue('');
+      
+      const notesInput = screen.getByLabelText('Notes (Optional)');
+      expect(notesInput).toHaveValue('');
+    }, { timeout: 3000 });
+  });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Github, AlertCircle, CheckCircle, XCircle, Rocket, FileText, ChevronDown } from 'lucide-react';
+import { Search, Github, AlertCircle, CheckCircle, XCircle, Rocket, FileText, ChevronDown, X } from 'lucide-react';
 import { GitHubService, GitHubUser, GitHubRepo, ContributorStats } from '@/lib/github';
 import { CriteriaAnalyzer, AnalysisResult, CriteriaResult } from '@/lib/criteria';
 import { HistoricalAnalysis, AnalysisRecord } from '@/lib/dataStorage';
@@ -373,15 +373,39 @@ export function GitHubAnalyzer() {
             )}
 
             <div className="flex items-end">
-              <div className="text-sm text-gray-600">
-                {isManualEntry ? (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    New Entry
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Existing Data
-                  </span>
+              <div className="flex flex-col items-center gap-2">
+                <div className="text-sm text-gray-600">
+                  {isManualEntry ? (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      New Entry
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      Existing Data
+                    </span>
+                  )}
+                </div>
+                {!isManualEntry && (
+                  <button
+                    onClick={() => {
+                      setSelectedUser('');
+                      setUserAnalyses([]);
+                      setSelectedAnalysisDate('');
+                      setUsername('');
+                      setRepoUrls('');
+                      setNotes('');
+                      setIsManualEntry(true);
+                      // Clear displayed results
+                      setUser(null);
+                      setAnalyses([]);
+                      setAggregatedAnalysis(null);
+                      setHistoricalAnalysis(null);
+                    }}
+                    className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors flex items-center gap-1"
+                  >
+                    <X className="w-3 h-3" />
+                    Clear
+                  </button>
                 )}
               </div>
             </div>
