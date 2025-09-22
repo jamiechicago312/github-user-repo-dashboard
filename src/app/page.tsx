@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import { GitHubAnalyzer } from '@/components/GitHubAnalyzer';
 import { SpreadsheetView } from '@/components/SpreadsheetView';
-import { Search, Table } from 'lucide-react';
+import { BatchAnalyzer } from '@/components/BatchAnalyzer';
+import { User, Users, Table } from 'lucide-react';
 
-type ViewMode = 'analyzer' | 'spreadsheet';
+type TabType = 'individual' | 'batch' | 'spreadsheet';
 
 export default function Home() {
-  const [currentView, setCurrentView] = useState<ViewMode>('analyzer');
+  const [activeTab, setActiveTab] = useState<TabType>('individual');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -34,42 +35,57 @@ export default function Home() {
               <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
               <span>Local CSV storage</span>
             </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+              <span>Batch CSV import</span>
+            </div>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8 justify-center">
-              <button
-                onClick={() => setCurrentView('analyzer')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                  currentView === 'analyzer'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Search className="w-4 h-4" />
-                Analyzer
-              </button>
-              <button
-                onClick={() => setCurrentView('spreadsheet')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                  currentView === 'spreadsheet'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Table className="w-4 h-4" />
-                All Applicants
-              </button>
-            </nav>
+        {/* Tab Navigation */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-1 flex">
+            <button
+              onClick={() => setActiveTab('individual')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-colors ${
+                activeTab === 'individual'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              Individual Analysis
+            </button>
+            <button
+              onClick={() => setActiveTab('batch')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-colors ${
+                activeTab === 'batch'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Batch CSV Import
+            </button>
+            <button
+              onClick={() => setActiveTab('spreadsheet')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-colors ${
+                activeTab === 'spreadsheet'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <Table className="w-4 h-4" />
+              All Applicants
+            </button>
           </div>
         </div>
-        
-        {/* Content */}
-        {currentView === 'analyzer' ? (
+
+        {/* Tab Content */}
+        {activeTab === 'individual' ? (
           <GitHubAnalyzer />
+        ) : activeTab === 'batch' ? (
+          <BatchAnalyzer />
         ) : (
           <SpreadsheetView />
         )}
