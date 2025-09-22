@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { GitHubUser } from '@/lib/github';
 import { AnalysisResult, CriteriaResult } from '@/lib/criteria';
-import { CheckCircle, XCircle, Rocket, Star, GitPullRequest, Users, Shield, ExternalLink } from 'lucide-react';
+import { CheckCircle, XCircle, Rocket, Star, GitPullRequest, Users, Shield, ExternalLink, Edit3, Save, X } from 'lucide-react';
 
 interface RepositoryAnalysis {
   repo: {
@@ -25,9 +26,70 @@ interface AnalysisResultsProps {
   user: GitHubUser;
   analyses: RepositoryAnalysis[];
   aggregatedAnalysis: AnalysisResult | null;
+  currentAnalysisId?: string | null;
 }
 
-export function AnalysisResults({ user, analyses, aggregatedAnalysis }: AnalysisResultsProps) {
+export function AnalysisResults({ user, analyses, aggregatedAnalysis, currentAnalysisId }: AnalysisResultsProps) {
+  const [editingCredit, setEditingCredit] = useState(false);
+  const [creditAmount, setCreditAmount] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  // Initialize credit amount based on analysis status
+  const getDefaultCreditAmount = (status: 'exceeds' | 'meets' | 'falls_short') => {
+    switch (status) {
+      case 'exceeds': return 500;
+      case 'meets': return 300;
+      case 'falls_short': return 0;
+    }
+  };
+
+  const startEditingCredit = () => {
+    if (aggregatedAnalysis) {
+      setCreditAmount(getDefaultCreditAmount(aggregatedAnalysis.overallStatus));
+      setEditingCredit(true);
+    }
+  };
+
+  const cancelEditingCredit = () => {
+    setEditingCredit(false);
+    setError('');
+  };
+
+  const saveCredit = async () => {
+    if (!currentAnalysisId) {
+      setError('Cannot save: No analysis ID available');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await fetch('/api/analyses', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: currentAnalysisId,
+          creditRecommendation: creditAmount
+        }),
+      });
+
+      if (response.ok) {
+        setEditingCredit(false);
+        setError('');
+        // Note: In a real app, you might want to refresh the data or update local state
+      } else {
+        setError('Failed to save credit amount');
+      }
+    } catch (err) {
+      setError('Error saving credit amount');
+      console.error('Error saving credit amount:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const getStatusColor = (status: 'exceeds' | 'meets' | 'falls_short') => {
     switch (status) {
       case 'exceeds':
@@ -252,36 +314,94 @@ export function AnalysisResults({ user, analyses, aggregatedAnalysis }: Analysis
       {/* Credit Recommendation */}
       {aggregatedAnalysis && (
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">Credit Recommendation</h3>
-          <div className={`p-4 rounded-lg border ${getStatusColor(aggregatedAnalysis.overallStatus)}`}>
-            {aggregatedAnalysis.overallStatus === 'exceeds' && (
-              <div>
-                <p className="font-medium mb-2">🎉 Recommended for $500 credits</p>
-                <p className="text-sm">
-                  This contributor significantly exceeds the requirements and would be an excellent 
-                  candidate for the maximum credit allocation.
-                </p>
-              </div>
-            )}
-            {aggregatedAnalysis.overallStatus === 'meets' && (
-              <div>
-                <p className="font-medium mb-2">✅ Recommended for $300 credits</p>
-                <p className="text-sm">
-                  This contributor meets all the basic requirements and would benefit from 
-                  OpenHands Cloud credits for their maintenance work.
-                </p>
-              </div>
-            )}
-            {aggregatedAnalysis.overallStatus === 'falls_short' && (
-              <div>
-                <p className="font-medium mb-2">❌ Not recommended for credits</p>
-                <p className="text-sm">
-                  This contributor does not meet the minimum requirements for the OSS Credit Program. 
-                  Consider encouraging them to increase their contribution activity.
-                </p>
-              </div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-gray-900">Credit Recommendation</h3>
+            {currentAnalysisId && !editingCredit && (
+              <button
+                onClick={startEditingCredit}
+                className="flex items-center gap-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                title="Adjust credit amount"
+              >
+                <Edit3 className="w-4 h-4" />
+                Adjust Amount
+              </button>
             )}
           </div>
+
+          {editingCredit ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-gray-700">Credit Amount:</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-medium">$</span>
+                  <input
+                    type="number"
+                    value={creditAmount}
+                    onChange={(e) => setCreditAmount(parseInt(e.target.value) || 0)}
+                    className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    min="0"
+                    max="1000"
+                    step="50"
+                  />
+                </div>
+              </div>
+              
+              {error && (
+                <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={saveCredit}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={cancelEditingCredit}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <X className="w-4 h-4" />
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className={`p-4 rounded-lg border ${getStatusColor(aggregatedAnalysis.overallStatus)}`}>
+              {aggregatedAnalysis.overallStatus === 'exceeds' && (
+                <div>
+                  <p className="font-medium mb-2">🎉 Recommended for $500 credits</p>
+                  <p className="text-sm">
+                    This contributor significantly exceeds the requirements and would be an excellent 
+                    candidate for the maximum credit allocation.
+                  </p>
+                </div>
+              )}
+              {aggregatedAnalysis.overallStatus === 'meets' && (
+                <div>
+                  <p className="font-medium mb-2">✅ Recommended for $300 credits</p>
+                  <p className="text-sm">
+                    This contributor meets all the basic requirements and would benefit from 
+                    OpenHands Cloud credits for their maintenance work.
+                  </p>
+                </div>
+              )}
+              {aggregatedAnalysis.overallStatus === 'falls_short' && (
+                <div>
+                  <p className="font-medium mb-2">❌ Not recommended for credits</p>
+                  <p className="text-sm">
+                    This contributor does not meet the minimum requirements for the OSS Credit Program. 
+                    Consider encouraging them to increase their contribution activity.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

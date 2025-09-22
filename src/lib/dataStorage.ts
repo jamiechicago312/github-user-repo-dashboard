@@ -387,4 +387,83 @@ export class DataStorage {
       return [];
     }
   }
+
+  async getUniqueUsers(): Promise<string[]> {
+    try {
+      const analyses = await this.getAllAnalyses();
+      const uniqueUsers = [...new Set(analyses.map(record => record.username))];
+      return uniqueUsers.sort();
+    } catch (error) {
+      console.error('Error getting unique users:', error);
+      return [];
+    }
+  }
+
+  async updateAnalysisNotes(id: string, notes: string): Promise<boolean> {
+    try {
+      await this.ensureCsvFile();
+      const content = await fs.readFile(this.csvPath, 'utf-8');
+      const lines = content.split('\n');
+      const header = lines[0];
+      const dataLines = lines.slice(1);
+      
+      let updated = false;
+      const updatedLines = dataLines.map(line => {
+        if (line.trim().length === 0) return line;
+        
+        const record = this.csvRowToRecord(line);
+        if (record && record.id === id) {
+          record.notes = notes;
+          updated = true;
+          return this.recordToCsvRow(record).replace(/\n$/, ''); // Remove trailing newline
+        }
+        return line;
+      });
+
+      if (updated) {
+        const newContent = [header, ...updatedLines].join('\n');
+        await fs.writeFile(this.csvPath, newContent);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error updating analysis notes:', error);
+      return false;
+    }
+  }
+
+  async updateAnalysisCreditRecommendation(id: string, creditRecommendation: number): Promise<boolean> {
+    try {
+      await this.ensureCsvFile();
+      const content = await fs.readFile(this.csvPath, 'utf-8');
+      const lines = content.split('\n');
+      const header = lines[0];
+      const dataLines = lines.slice(1);
+      
+      let updated = false;
+      const updatedLines = dataLines.map(line => {
+        if (line.trim().length === 0) return line;
+        
+        const record = this.csvRowToRecord(line);
+        if (record && record.id === id) {
+          record.creditRecommendation = creditRecommendation;
+          updated = true;
+          return this.recordToCsvRow(record).replace(/\n$/, ''); // Remove trailing newline
+        }
+        return line;
+      });
+
+      if (updated) {
+        const newContent = [header, ...updatedLines].join('\n');
+        await fs.writeFile(this.csvPath, newContent);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error updating analysis credit recommendation:', error);
+      return false;
+    }
+  }
 }

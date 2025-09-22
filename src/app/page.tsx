@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { GitHubAnalyzer } from '@/components/GitHubAnalyzer';
+import { SpreadsheetView } from '@/components/SpreadsheetView';
 import { BatchAnalyzer } from '@/components/BatchAnalyzer';
-import { User, Users } from 'lucide-react';
+import { User, Users, Table } from 'lucide-react';
 
-type TabType = 'individual' | 'batch';
+type TabType = 'individual' | 'batch' | 'spreadsheet';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>('individual');
@@ -66,14 +67,27 @@ export default function Home() {
               <Users className="w-4 h-4" />
               Batch CSV Import
             </button>
+            <button
+              onClick={() => setActiveTab('spreadsheet')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-colors ${
+                activeTab === 'spreadsheet'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <Table className="w-4 h-4" />
+              All Applicants
+            </button>
           </div>
         </div>
-        
+
         {/* Tab Content */}
         {activeTab === 'individual' ? (
           <GitHubAnalyzer />
-        ) : (
+        ) : activeTab === 'batch' ? (
           <BatchAnalyzer />
+        ) : (
+          <SpreadsheetView />
         )}
       </div>
     </div>

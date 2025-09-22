@@ -224,6 +224,7 @@ export function BatchResults({ results, onClear }: BatchResultsProps) {
           </thead>
           <tbody>
             {filteredAndSortedResults.map((result) => (
+              <>
               <tr key={result.username} className="border-t border-gray-100 hover:bg-gray-50">
                 <td className="p-4">
                   <div className="flex items-center gap-2">
@@ -385,6 +386,7 @@ export function BatchResults({ results, onClear }: BatchResultsProps) {
                   </td>
                 </tr>
               )}
+              </>
             ))}
           </tbody>
         </table>
