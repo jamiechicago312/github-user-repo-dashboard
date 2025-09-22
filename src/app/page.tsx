@@ -2,8 +2,14 @@
 
 import { useState } from 'react';
 import { GitHubAnalyzer } from '@/components/GitHubAnalyzer';
+import { BatchAnalyzer } from '@/components/BatchAnalyzer';
+import { User, Users } from 'lucide-react';
+
+type TabType = 'individual' | 'batch';
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<TabType>('individual');
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -28,10 +34,47 @@ export default function Home() {
               <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
               <span>Local CSV storage</span>
             </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+              <span>Batch CSV import</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-1 flex">
+            <button
+              onClick={() => setActiveTab('individual')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-colors ${
+                activeTab === 'individual'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              Individual Analysis
+            </button>
+            <button
+              onClick={() => setActiveTab('batch')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-md font-medium transition-colors ${
+                activeTab === 'batch'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Batch CSV Import
+            </button>
           </div>
         </div>
         
-        <GitHubAnalyzer />
+        {/* Tab Content */}
+        {activeTab === 'individual' ? (
+          <GitHubAnalyzer />
+        ) : (
+          <BatchAnalyzer />
+        )}
       </div>
     </div>
   );
